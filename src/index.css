@@ -1,0 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap');
+
+:root {
+  --primary-50: #eaf7ff;
+  --primary-100: #d8f0ff;
+  --primary-500: #4ea7e8;
+  --primary-600: #2d89d0;
+  --primary-700: #176bb0;
+  --primary-900: #0a3e6a;
+  
+  --secondary-500: #ffd600;
+  --secondary-600: #eab308;
+  
+  --accent-red: #ef4444;
+  
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-500: #6b7280;
+  --gray-700: #374151;
+  --gray-900: #111827;
+
+  --bg: var(--gray-50);
+  --text: var(--gray-700);
+  --text-h: var(--primary-900);
+  --border: var(--gray-200);
+  --card-bg: #ffffff;
+  --input-bg: #ffffff;
+  
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.12);
+
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text);
+  background-color: var(--bg);
+  margin: 0;
+  height: 100vh;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5 {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  color: var(--text-h);
+  margin: 0;
+}
+
+h1 {
+  font-size: 2.25rem;
+  letter-spacing: -0.03em;
+  margin-bottom: 0.5rem;
+}
+
+h2 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+p {
+  margin: 0 0 1rem 0;
+}
+
+a {
+  color: var(--primary-600);
+  text-decoration: none;
+  transition: color 150ms ease-out;
+}
+
+a:hover {
+  color: var(--primary-700);
+}
+
+* {
+  box-sizing: border-box;
+}
