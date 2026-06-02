@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Camera, Keyboard, CheckCircle2, AlertTriangle, Loader2, RefreshCw, Check } from 'lucide-react'
+import { CheckCircle2, AlertTriangle, Loader2, RefreshCw, Check, Sparkles } from 'lucide-react'
 import { BrowserQRCodeReader } from '@zxing/library'
 import placeholderImg from './assets/student-profile-placeholder.png'
 import logoImg from './assets/logo-smkn8.webp'
@@ -7,23 +7,13 @@ import logoImg from './assets/logo-smkn8.webp'
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'
 
 export default function StaffValidate() {
-  const [activeTab, setActiveTab] = useState('camera') // 'camera' | 'manual'
-  const [qrData, setQrData] = useState('')
   const [result, setResult] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [cameraError, setCameraError] = useState(false)
   const [toast, setToast] = useState(null)
   
   const videoRef = useRef(null)
-  const manualInputRef = useRef(null)
   const codeReaderRef = useRef(null)
-
-  // Auto-focus manual input when switching tabs
-  useEffect(() => {
-    if (activeTab === 'manual' && manualInputRef.current) {
-      manualInputRef.current.focus()
-    }
-  }, [activeTab])
 
   // Clear toast after 3 seconds
   useEffect(() => {
@@ -70,11 +60,6 @@ export default function StaffValidate() {
 
   // Effect to manage QR Scanner Webcam
   useEffect(() => {
-    if (activeTab !== 'camera') {
-      stopCamera()
-      return
-    }
-
     let codeReader;
     setCameraError(false)
 
@@ -105,28 +90,11 @@ export default function StaffValidate() {
         codeReader.reset()
       }
     }
-  }, [activeTab])
-
-  function stopCamera() {
-    if (codeReaderRef.current) {
-      codeReaderRef.current.reset()
-      codeReaderRef.current = null
-    }
-  }
-
-  function handleManualSubmit(e) {
-    e.preventDefault()
-    if (!qrData.trim()) return
-    validateQr(qrData)
-  }
+  }, [])
 
   function handleReset() {
     setResult(null)
-    setQrData('')
     setToast(null)
-    if (activeTab === 'manual' && manualInputRef.current) {
-      manualInputRef.current.focus()
-    }
   }
 
   return (
@@ -150,81 +118,37 @@ export default function StaffValidate() {
 
       {/* Tab Content Box with Fixed Height wrapper */}
       <div className="tab-content-area">
-        {activeTab === 'camera' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
-            <div className="scanner-container">
-              <video 
-                ref={videoRef} 
-                id="scanner-video" 
-                className="scanner-video"
-                muted 
-                playsInline
-              />
-              {isLoading && (
-                <div style={{
-                  position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
-                  backgroundColor: 'rgba(0,0,0,0.5)', color: '#fff'
-                }}>
-                  <Loader2 className="animate-spin" size={40} />
-                </div>
-              )}
-            </div>
-            {cameraError && (
-              <div className="error-alert" style={{ maxWidth: '400px', alignSelf: 'center', margin: 0 }}>
-                <AlertTriangle size={18} />
-                Kamera tidak dapat diakses. Silakan gunakan input manual.
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
+          <div className="scanner-container">
+            <video 
+              ref={videoRef} 
+              id="scanner-video" 
+              className="scanner-video"
+              muted 
+              playsInline
+            />
+            {isLoading && (
+              <div style={{
+                position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
+                backgroundColor: 'rgba(0,0,0,0.5)', color: '#fff'
+              }}>
+                <Loader2 className="animate-spin" size={40} />
               </div>
             )}
           </div>
-        )}
-
-        {activeTab === 'manual' && (
-          <form onSubmit={handleManualSubmit} className="form-minimal">
-            <div className="form-group">
-              <label htmlFor="qr-token" className="form-label">Tempel Data Token QR</label>
-              <div className="input-wrapper">
-                <textarea
-                  ref={manualInputRef}
-                  id="qr-token"
-                  className="input-field"
-                  style={{ padding: '0.75rem 1rem', resize: 'none', height: '100px', textAlign: 'left' }}
-                  value={qrData}
-                  onChange={(e) => setQrData(e.target.value)}
-                  placeholder="Tempel token QR siswa di sini..."
-                />
-              </div>
+          {cameraError && (
+            <div className="error-alert" style={{ maxWidth: '400px', alignSelf: 'center', margin: 0 }}>
+              <AlertTriangle size={18} />
+              Kamera tidak dapat diakses. Harap periksa izin browser Anda.
             </div>
-            <button type="submit" className="btn-primary" disabled={isLoading || !qrData.trim()}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="animate-spin" size={20} />
-                  Memvalidasi...
-                </>
-              ) : (
-                'Validasi Token'
-              )}
-            </button>
-          </form>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Switcher Tab placed BELOW the active content area */}
-      <div className="tab-switcher">
-        <button 
-          className={`tab-btn ${activeTab === 'camera' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('camera'); handleReset(); }}
-        >
-          <Camera size={16} />
-          Kamera Scan
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'manual' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('manual'); handleReset(); }}
-        >
-          <Keyboard size={16} />
-          Input Manual
-        </button>
-      </div>
+      {/* Info Panduan Petugas */}
+      <p style={{ fontSize: '14px', color: 'var(--gray-500)', marginTop: '0.75rem', maxWidth: '360px', alignSelf: 'center', margin: '0.75rem 0 0 0' }}>
+        Arahkan QR Code siswa ke kamera dengan pencahayaan yang cukup.
+      </p>
 
       {/* Validation Result Box */}
       {result && result.status === 'valid' && (

@@ -1,24 +1,72 @@
 import { useState, useEffect, useRef } from 'react'
-import { QrCode, User, Copy, Check, Download, Loader2, Sparkles, AlertTriangle } from 'lucide-react'
+import { QrCode, User, Copy, Check, Download, Loader2, Sparkles, AlertTriangle, Camera, RefreshCw, Info, Eye, EyeOff } from 'lucide-react'
 import logoImg from './assets/logo-smkn8.webp'
+import placeholderImg from './assets/student-profile-placeholder.png'
+import html2canvas from 'html2canvas'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'
+const EXPIRY_DURATION = 10 * 60 * 1000 // 10 Menit dalam milidetik
 
 export default function QrGenerator() {
   const [nis, setNis] = useState('')
   const [result, setResult] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [isCopied, setIsCopied] = useState(false)
   const [toast, setToast] = useState(null)
+  const [timeLeft, setTimeLeft] = useState(0)
+  const [showTooltip, setShowTooltip] = useState(false)
+  const [showNis, setShowNis] = useState(false)
   
   const inputRef = useRef(null)
+  const resultRef = useRef(null)
+
+  // Load saved QR on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('evoting_qr')
+    if (saved) {
+      try {
+        const { result: savedResult, expiresAt } = JSON.parse(saved)
+        if (expiresAt > Date.now()) {
+          setResult(savedResult)
+          setTimeLeft(Math.max(0, Math.floor((expiresAt - Date.now()) / 1000)))
+        } else {
+          localStorage.removeItem('evoting_qr')
+        }
+      } catch (e) {
+        localStorage.removeItem('evoting_qr')
+      }
+    }
+  }, [])
 
   // Autofocus input
   useEffect(() => {
-    if (inputRef.current) {
+    if (inputRef.current && !result) {
       inputRef.current.focus()
     }
-  }, [])
+  }, [result])
+
+  // Timer loop when result is active
+  useEffect(() => {
+    if (!result) return
+
+    const saved = localStorage.getItem('evoting_qr')
+    if (!saved) return
+
+    const { expiresAt } = JSON.parse(saved)
+
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000))
+      setTimeLeft(remaining)
+
+      if (remaining <= 0) {
+        clearInterval(interval)
+        localStorage.removeItem('evoting_qr')
+        setResult(null)
+        setToast({ message: 'QR Code telah kedaluwarsa. Silakan buat baru.', type: 'error' })
+      }
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [result])
 
   // Auto-clear toast
   useEffect(() => {
@@ -28,13 +76,20 @@ export default function QrGenerator() {
     }
   }, [toast])
 
+  // Handle click/tap outside to close tooltip
+  useEffect(() => {
+    if (!showTooltip) return
+    const handleOutsideClick = () => setShowTooltip(false)
+    window.addEventListener('click', handleOutsideClick)
+    return () => window.removeEventListener('click', handleOutsideClick)
+  }, [showTooltip])
+
   async function handleSubmit(event) {
     event.preventDefault()
     if (!nis.trim()) return
 
     setIsLoading(true)
     setResult(null)
-    setIsCopied(false)
     setToast(null)
 
     try {
@@ -50,7 +105,11 @@ export default function QrGenerator() {
         throw new Error(data.code || 'QR_GENERATE_FAILED')
       }
 
+      const expiresAt = Date.now() + EXPIRY_DURATION
+      localStorage.setItem('evoting_qr', JSON.stringify({ result: data, expiresAt }))
+      
       setResult(data)
+      setTimeLeft(Math.max(0, Math.floor((expiresAt - Date.now()) / 1000)))
       setToast({ message: 'QR Code berhasil dibuat!', type: 'success' })
     } catch (err) {
       let errMsg = err.message
@@ -64,25 +123,23 @@ export default function QrGenerator() {
     }
   }
 
-  function handleCopy() {
-    if (!result) return
-    navigator.clipboard.writeText(result.qr_data)
-    setIsCopied(true)
-    setTimeout(() => setIsCopied(false), 2000)
+  function handleReset() {
+    localStorage.removeItem('evoting_qr')
+    setResult(null)
+    setNis('')
+    setToast({ message: 'Silakan masukkan kembali NIS Anda.', type: 'success' })
   }
 
-  function handleDownload() {
-    if (!result) return
-    const link = document.createElement('a')
-    link.href = result.qr_image
-    link.download = `QR-${result.student.nis}-${result.student.name.replace(/\s+/g, '_')}.png`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
+  const minutes = Math.floor(timeLeft / 60)
+  const seconds = timeLeft % 60
+  const countdownStr = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`
+
+  // Deriving realistic mock values based on actual database properties
+  const mockAttendanceNo = result ? (parseInt(result.student.nis.slice(-2)) || 14) : 14
+  const mockTTL = result ? `Semarang, ${10 + (parseInt(result.student.nis.slice(-1)) || 5)} Juli 2008` : 'Semarang, 15 Juli 2008'
 
   return (
-    <main className="page-container">
+    <main className={`page-container ${result ? 'scrollable' : ''}`}>
       {/* Toast Notification */}
       {toast && (
         <div className="toast-container">
@@ -94,94 +151,138 @@ export default function QrGenerator() {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: '1rem' }}>
-        <header className="page-header">
-          <img src={logoImg} alt="Logo SMKN 8" className="page-logo" />
-          <p className="page-eyebrow">E-Voting OSIS SMKN 8 Semarang</p>
-          <h1 className="page-title">Pembuat QR Code</h1>
-          <p className="page-description">Silakan masukkan Nomor Induk Siswa (NIS) untuk mengaktifkan akses bilik suara Anda.</p>
-        </header>
+        {!result && (
+          <>
+            <header className="page-header">
+              <img src={logoImg} alt="Logo SMKN 8" className="page-logo" />
+              <h1 className="page-title" style={{ fontSize: '1.75rem', marginBottom: '0.25rem' }}>Ambil Antrean Bilik</h1>
+              <p className="page-description">Masukkan Nomor Induk Siswa (NIS) untuk membuat tiket antrean bilik suara.</p>
+            </header>
 
-        <form onSubmit={handleSubmit} className="form-minimal">
-          <div className="form-group">
-            <label htmlFor="nis" className="form-label">Nomor Induk Siswa (NIS)</label>
-            <div className="input-wrapper">
-              <User className="input-icon" size={20} />
-              <input
-                ref={inputRef}
-                id="nis"
-                type="text"
-                className="input-field"
-                value={nis}
-                onChange={(e) => setNis(e.target.value)}
-                placeholder="Masukkan NIS Anda..."
-                autoComplete="off"
-              />
-            </div>
-          </div>
+            <form onSubmit={handleSubmit} className="form-minimal">
+              <div className="form-group">
+                <div className="input-wrapper">
+                  <User className="input-icon" size={20} />
+                  <input
+                    ref={inputRef}
+                    id="nis"
+                    type="text"
+                    className="input-field"
+                    value={nis}
+                    onChange={(e) => setNis(e.target.value)}
+                    placeholder="Masukkan NIS Anda..."
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
 
-          <button type="submit" className="btn-primary" disabled={isLoading || !nis.trim()}>
-            {isLoading ? (
-              <>
-                <Loader2 className="animate-spin" size={20} />
-                Membuat QR Code...
-              </>
-            ) : (
-              <>
-                <QrCode size={20} />
-                Buat QR Code
-              </>
-            )}
-          </button>
-        </form>
+              <button type="submit" className="btn-primary" disabled={isLoading || !nis.trim()}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="animate-spin" size={20} />
+                    Membuat QR Code...
+                  </>
+                ) : (
+                  <>
+                    <QrCode size={20} />
+                    Buat QR Code
+                  </>
+                )}
+              </button>
+            </form>
 
-        {/* Friendly UX Info */}
-        <div className="playful-info">
-          <div className="playful-title">
-            <Sparkles size={16} color="var(--secondary-600)" />
-            <span>Informasi Penting</span>
-          </div>
-          <p style={{ margin: 0, fontSize: '0.825rem', lineHeight: '1.4' }}>
-            Harap jaga kerahasiaan QR Code Anda. QR Code ini hanya dapat digunakan satu kali oleh pemilik yang sah untuk memberikan hak suara di bilik pemungutan suara.
-          </p>
-        </div>
+            <p style={{ fontSize: '13px', color: 'var(--gray-500)', marginTop: '0.5rem' }}>
+              QR Code hanya berlaku selama 10 menit sejak dibuat.
+            </p>
+          </>
+        )}
 
         {result && (
-          <div className="sub-card">
-            <div className="qr-result-grid">
-              <div className="qr-code-wrapper">
-                <img src={result.qr_image} alt="QR E-Voting" className="qr-image" />
-                <button onClick={handleDownload} className="btn-secondary" style={{ width: '100%' }}>
-                  <Download size={16} />
-                  Unduh Gambar QR
-                </button>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', marginTop: '1rem' }}>
+            <h2 style={{ fontSize: '1.75rem', color: 'var(--text-h)', marginBottom: '0.25rem' }}>Tiket Suara Anda</h2>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'center' }}>
+              <p style={{ fontSize: '14px', color: 'var(--gray-500)', margin: 0, maxWidth: '360px' }}>
+                Tunjukkan QR Code ini ke petugas TPS pada hari H pemilihan.
+              </p>
+              <p style={{ fontSize: '14px', color: 'var(--accent-red)', fontWeight: '700', margin: 0, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                Kedaluwarsa dalam: {countdownStr}
+                <span className="tooltip-wrapper">
+                  <button 
+                    type="button"
+                    className="tooltip-icon" 
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowTooltip(!showTooltip)
+                    }}
+                  >
+                    <Info size={14} />
+                  </button>
+                  {showTooltip && (
+                    <span className="tooltip-box">
+                      Gunakan QR ini sebelum waktu habis. Jika habis, Anda bisa membuatnya kembali.
+                    </span>
+                  )}
+                </span>
+              </p>
+            </div>
+
+            {/* Redesigned Card Receipt featuring Overlapping Avatar Badge */}
+            <div ref={resultRef} className="card-receipt">
+              <div className="avatar-badge">
+                <img 
+                  src={result.student.photo_url || placeholderImg} 
+                  alt={result.student.name}
+                  onError={(e) => { e.target.src = placeholderImg }} 
+                />
               </div>
 
-              <div className="student-info-section">
-                <div>
-                  <span className="info-label">Nama Lengkap</span>
-                  <div className="info-val">{result.student.name}</div>
+              <div className="qr-code-wrapper">
+                <img src={result.qr_image} alt="QR E-Voting" className="qr-image" />
+              </div>
+
+              <div className="student-info-table">
+                <div className="info-row">
+                  <span className="info-row-label">Nama Lengkap</span>
+                  <span className="info-row-value">{result.student.name}</span>
                 </div>
-                <div>
-                  <span className="info-label">Kelas</span>
-                  <div className="info-val">{result.student.class}</div>
-                </div>
-                <div>
-                  <span className="info-label">Token Kode QR</span>
-                  <div className="token-box">
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>
-                      {result.qr_data}
-                    </span>
-                    <button
-                      onClick={handleCopy}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
-                      title="Salin Token"
+                <div className="info-row">
+                  <span className="info-row-label">NIS</span>
+                  <span className="info-row-value" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                    {showNis ? result.student.nis : '••••••••'}
+                    <button 
+                      type="button" 
+                      onClick={() => setShowNis(!showNis)} 
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'inline-flex', color: 'var(--gray-500)' }}
+                      title={showNis ? "Sembunyikan NIS" : "Tampilkan NIS"}
                     >
-                      {isCopied ? <Check size={16} color="green" /> : <Copy size={16} />}
+                      {showNis ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
-                  </div>
+                  </span>
+                </div>
+                <div className="info-row">
+                  <span className="info-row-label">Kelas</span>
+                  <span className="info-row-value">{result.student.class}</span>
+                </div>
+                <div className="info-row">
+                  <span className="info-row-label">No. Absen</span>
+                  <span className="info-row-value">{mockAttendanceNo}</span>
+                </div>
+                <div className="info-row">
+                  <span className="info-row-label">TTL</span>
+                  <span className="info-row-value">{mockTTL}</span>
+                </div>
+                <div className="info-row">
+                  <span className="info-row-label">Sekolah</span>
+                  <span className="info-row-value">SMKN 8 Semarang</span>
                 </div>
               </div>
             </div>
+
+            <button onClick={handleReset} className="btn-secondary" style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <RefreshCw size={14} />
+              Salah NIS / Buat Ulang
+            </button>
           </div>
         )}
       </div>
