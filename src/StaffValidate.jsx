@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { CheckCircle2, AlertTriangle, Loader2, RefreshCw, Check, Sparkles } from 'lucide-react'
 import { BrowserQRCodeReader } from '@zxing/library'
 import placeholderImg from './assets/student-profile-placeholder.png'
-import logoImg from './assets/logo-smkn8.webp'
+import logoImg from './assets/logo-smkn8.png'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'
 
@@ -98,7 +98,7 @@ export default function StaffValidate() {
   }
 
   return (
-    <main className="page-container">
+    <>
       {/* Toast Notification */}
       {toast && (
         <div className="toast-container">
@@ -108,6 +108,8 @@ export default function StaffValidate() {
           </div>
         </div>
       )}
+
+      <main className="page-container">
 
       <header className="page-header">
         <img src={logoImg} alt="Logo SMKN 8" className="page-logo" />
@@ -187,5 +189,6 @@ export default function StaffValidate() {
         </div>
       )}
     </main>
-  )
+  </>
+)
 }

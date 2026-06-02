@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { QrCode, User, Copy, Check, Download, Loader2, Sparkles, AlertTriangle, Camera, RefreshCw, Info, Eye, EyeOff } from 'lucide-react'
-import logoImg from './assets/logo-smkn8.webp'
+import logoImg from './assets/logo-smkn8.png'
 import placeholderImg from './assets/student-profile-placeholder.png'
 import html2canvas from 'html2canvas'
 
@@ -139,7 +139,7 @@ export default function QrGenerator() {
   const mockTTL = result ? `Semarang, ${10 + (parseInt(result.student.nis.slice(-1)) || 5)} Juli 2008` : 'Semarang, 15 Juli 2008'
 
   return (
-    <main className={`page-container ${result ? 'scrollable' : ''}`}>
+    <>
       {/* Toast Notification */}
       {toast && (
         <div className="toast-container">
@@ -150,7 +150,8 @@ export default function QrGenerator() {
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: '1rem' }}>
+      <main className={`page-container ${result ? 'scrollable' : ''}`}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: '1rem', position: 'relative', zIndex: 1 }}>
         {!result && (
           <>
             <header className="page-header">
@@ -287,5 +288,6 @@ export default function QrGenerator() {
         )}
       </div>
     </main>
-  )
+  </>
+)
 }
